@@ -1,7 +1,7 @@
 {
   "projectId": "financehub-3dc32",
   "appId": "1:366833539824:web:d1a366c10f0691d6ff4035",
-  "apiKey": "AIzaSyDE5ZLHxp33kkTW492friqx19VqbHFMDk8",
+  "apiKey": "API_KEY",
   "authDomain": "financehub-3dc32.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-8133af41-f711-4352-87d2-f9992ce5f204",
   "storageBucket": "financehub-3dc32.firebasestorage.app",
