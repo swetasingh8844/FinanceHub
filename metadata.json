@@ -1,0 +1,5 @@
+{
+  "name": "FinanceHub",
+  "description": "A robust financial dashboard with role-based access control, transaction management, and real-time analytics.",
+  "requestFramePermissions": []
+}

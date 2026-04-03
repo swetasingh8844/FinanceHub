@@ -1,0 +1,105 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: {userId}
+// Fields:
+//   - uid: string (required) - The unique identifier for the user
+//   - email: string (required, email) - The user's email address
+//   - displayName: string (optional) - The user's display name
+//   - role: string (required, enum: ["admin", "analyst", "viewer"]) - The user's role
+//   - status: string (required, enum: ["active", "inactive"]) - The user's status
+//   - createdAt: timestamp (optional) - When the user was created
+//
+// Collection: transactions
+// Document ID: {transactionId}
+// Fields:
+//   - id: string (optional) - The unique identifier for the transaction
+//   - amount: number (required, positive) - The amount of the transaction
+//   - type: string (required, enum: ["income", "expense"]) - The type of transaction
+//   - category: string (required) - The category of the transaction
+//   - date: timestamp (required) - The date of the transaction
+//   - description: string (optional) - A brief description
+//   - createdBy: string (required) - The UID of the user who created the record
+//   - createdAt: timestamp (optional) - When the record was created
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        getUserData().role == 'admin' ||
+        (request.auth.token.email == "swetasingh8844@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isAnalyst() {
+      return isAuthenticated() && (getUserData().role == 'analyst' || isAdmin());
+    }
+
+    function isViewer() {
+      return isAuthenticated() && (getUserData().role == 'viewer' || isAnalyst());
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'status']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['admin', 'analyst', 'viewer'] &&
+             data.status in ['active', 'inactive'];
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['amount', 'type', 'category', 'date', 'createdBy']) &&
+             data.amount is number && data.amount > 0 &&
+             data.type in ['income', 'expense'] &&
+             data.category is string &&
+             data.date is timestamp &&
+             data.createdBy is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Users can read their own profile, or admins/analysts can read all profiles
+      allow read: if isOwner(userId) || isAnalyst();
+      
+      // Only admins can create or update user roles/status
+      // Special case: Allow initial creation for the first user (the admin)
+      allow create: if isAdmin() || (isAuthenticated() && request.auth.uid == userId && request.resource.data.role == 'admin' && request.auth.token.email == "swetasingh8844@gmail.com");
+      allow update: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      // All authenticated users with a valid role can read transactions
+      allow read: if isViewer();
+      
+      // Only admins can create, update, or delete transactions
+      allow create: if isAdmin() && isValidTransaction(request.resource.data) && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAdmin() && isValidTransaction(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}
