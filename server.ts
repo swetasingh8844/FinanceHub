@@ -32,7 +32,9 @@ async function startServer() {
   };
 
   const swaggerDocs = swaggerJsdoc(swaggerOptions);
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs, {
+  explorer: true,
+}));
 
   /**
    * @openapi

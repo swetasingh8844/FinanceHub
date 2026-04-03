@@ -14,7 +14,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { label: 'Dashboard', path: '/', icon: LayoutDashboard, show: true },
     { label: 'Transactions', path: '/transactions', icon: Receipt, show: isAnalyst },
     { label: 'Users', path: '/users', icon: Users, show: isAdmin },
-    { label: 'API Docs', path: '/api-docs', icon: FileText, show: true, external: true },
+   { label: 'API Docs', path: `${import.meta.env.VITE_API_URL}/api-docs`, icon: FileText, show: true, external: true },
   ];
 
   const handleLogout = async () => {

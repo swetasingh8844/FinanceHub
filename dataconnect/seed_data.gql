@@ -1,0 +1,97 @@
+mutation CreateDemoData @transaction @auth(level: USER, insecureReason: "Seed data can be inserted by any logged-in user.") {
+  role_insertMany(data: [
+    {
+      id: "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
+      name: "Admin",
+      description: "Administrator role with full access",
+      createdAt: "2023-01-01T00:00:00Z"
+    },
+    {
+      id: "b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2",
+      name: "User",
+      description: "Standard user role with limited access",
+      createdAt: "2023-01-01T00:00:00Z"
+    }
+  ])
+  permission_insertMany(data: [
+    {
+      id: "c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3",
+      name: "create_transaction",
+      description: "Permission to create financial transactions",
+      createdAt: "2023-01-01T00:00:00Z"
+    },
+    {
+      id: "d4d4d4d4-d4d4-d4d4-d4d4-d4d4d4d4d4d4",
+      name: "view_own_transactions",
+      description: "Permission to view own financial transactions",
+      createdAt: "2023-01-01T00:00:00Z"
+    }
+  ])
+  rolePermission_insertMany(data: [
+    {
+      roleId: "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1",
+      permissionId: "c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3",
+      createdAt: "2023-01-01T00:00:00Z"
+    },
+    {
+      roleId: "b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2",
+      permissionId: "d4d4d4d4-d4d4-d4d4-d4d4-d4d4d4d4d4d4",
+      createdAt: "2023-01-01T00:00:00Z"
+    }
+  ])
+  user_insertMany(data: [
+    {
+      id: "e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e5e5",
+      username: "adminuser",
+      email: "admin@example.com",
+      passwordHash: "hashedadminpassword",
+      createdAt: "2023-01-01T00:00:00Z",
+      firstName: "Admin",
+      lastName: "User",
+      roleId: "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1"
+    },
+    {
+      id: "f6f6f6f6-f6f6-f6f6-f6f6-f6f6f6f6f6f6",
+      username: "normaluser",
+      email: "user@example.com",
+      passwordHash: "hasheduserpassword",
+      createdAt: "2023-01-01T00:00:00Z",
+      firstName: "Normal",
+      lastName: "User",
+      roleId: "b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2"
+    }
+  ])
+  financialTransaction_insertMany(data: [
+    {
+      id: "12345678-1234-1234-1234-123456789012",
+      transactionDate: "2023-10-26",
+      amount: 100.50,
+      type: "Income",
+      description: "Salary",
+      createdAt: "2023-10-26T10:00:00Z",
+      category: "Work",
+      referenceNumber: "INV001",
+      createdBy: {id: "e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e5e5"}
+    },
+    {
+      id: "98765432-9876-9876-9876-987654321098",
+      transactionDate: "2023-10-25",
+      amount: 25.00,
+      type: "Expense",
+      description: "Groceries",
+      createdAt: "2023-10-25T15:30:00Z",
+      category: "Food",
+      createdBy: {id: "f6f6f6f6-f6f6-f6f6-f6f6-f6f6f6f6f6f6"}
+    },
+    {
+      id: "00000000-0000-0000-0000-000000000001",
+      transactionDate: "2023-10-27",
+      amount: 75.20,
+      type: "Expense",
+      description: "Utilities bill",
+      createdAt: "2023-10-27T08:15:00Z",
+      category: "Bills",
+      createdBy: {id: "e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e5e5"}
+    }
+  ])
+}

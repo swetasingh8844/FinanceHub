@@ -1,0 +1,40 @@
+type User @table {
+  username: String!
+  email: String!
+  passwordHash: String!
+  createdAt: Timestamp!
+  firstName: String
+  lastName: String
+  lastLogin: Timestamp
+  role: Role!
+}
+
+type Role @table {
+  name: String!
+  createdAt: Timestamp!
+  description: String
+}
+
+type Permission @table {
+  name: String!
+  createdAt: Timestamp!
+  description: String
+}
+
+type RolePermission @table(key: ["role", "permission"]) {
+  role: Role!
+  permission: Permission!
+  createdAt: Timestamp!
+}
+
+type FinancialTransaction @table {
+  transactionDate: Date!
+  amount: Float!
+  type: String!
+  description: String!
+  createdAt: Timestamp!
+  category: String
+  referenceNumber: String
+  notes: String
+  createdBy: User
+}
