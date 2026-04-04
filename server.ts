@@ -26,7 +26,7 @@ async function startServer() {
 servers: [
   {
     url: process.env.NODE_ENV === "production"
-      ? "https://financehub-sacy.onrender.com"
+      ? "https://financehubservice.onrender.com"
       : "http://localhost:3000",
     description: process.env.NODE_ENV === "production"
       ? "Production server"
