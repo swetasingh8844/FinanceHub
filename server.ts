@@ -6,7 +6,6 @@ import { fileURLToPath } from "url";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
 import admin from "firebase-admin";
-const serviceAccount = require("./serviceAccountKey.json");
 import { readFileSync } from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
