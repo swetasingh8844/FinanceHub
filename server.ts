@@ -16,14 +16,12 @@ let db: admin.firestore.Firestore;
 
 try {
   if (process.env.NODE_ENV === "production" && process.env.FIREBASE_SERVICE_ACCOUNT) {
-    // On Render: use environment variable
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       databaseURL: `https://financehub-3dc32.firebaseio.com`,
     });
   } else {
-    // Locally: use serviceAccountKey.json file
     const serviceAccount = JSON.parse(readFileSync("./serviceAccountKey.json", "utf-8"));
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
@@ -40,7 +38,7 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  // ✅ CORS FIRST - before all routes
+  // CORS FIRST
   app.use(cors({
     origin: [
       "http://localhost:3000",
@@ -90,7 +88,7 @@ async function startServer() {
   const swaggerDocs = swaggerJsdoc(swaggerOptions);
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs, { explorer: true }));
 
-  // Auth middleware - verifies Firebase token
+  // ── Middleware: verify Firebase token ──
   const verifyToken = async (req: any, res: any, next: any) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -106,12 +104,40 @@ async function startServer() {
     }
   };
 
+  // ── Middleware: verify Admin role ──
+  const verifyAdmin = async (req: any, res: any, next: any) => {
+    try {
+      const userDoc = await db.collection("users").doc(req.user.uid).get();
+      const role = userDoc.data()?.role;
+      if (role !== "admin") {
+        return res.status(403).json({ error: "Forbidden - Admin access required" });
+      }
+      next();
+    } catch (error) {
+      return res.status(403).json({ error: "Forbidden - Could not verify role" });
+    }
+  };
+
+  // ── Middleware: verify Analyst or Admin role ──
+  const verifyAnalyst = async (req: any, res: any, next: any) => {
+    try {
+      const userDoc = await db.collection("users").doc(req.user.uid).get();
+      const role = userDoc.data()?.role;
+      if (role !== "admin" && role !== "analyst") {
+        return res.status(403).json({ error: "Forbidden - Analyst or Admin access required" });
+      }
+      next();
+    } catch (error) {
+      return res.status(403).json({ error: "Forbidden - Could not verify role" });
+    }
+  };
+
   /**
    * @openapi
    * /api/health:
    *   get:
    *     summary: Health check
-   *     description: Returns the health status of the API.
+   *     description: Returns the health status of the API. No authentication required.
    *     responses:
    *       200:
    *         description: API is running
@@ -133,7 +159,7 @@ async function startServer() {
    * /api/transactions:
    *   get:
    *     summary: Get all transactions
-   *     description: Returns real-time transactions from Firestore. Requires authentication.
+   *     description: Returns real-time transactions from Firestore. Requires Analyst or Admin role.
    *     security:
    *       - bearerAuth: []
    *     responses:
@@ -162,9 +188,11 @@ async function startServer() {
    *                   createdBy:
    *                     type: string
    *       401:
-   *         description: Unauthorized
+   *         description: Unauthorized - No token provided
+   *       403:
+   *         description: Forbidden - Analyst or Admin access required
    */
-  app.get("/api/transactions", verifyToken, async (req, res) => {
+  app.get("/api/transactions", verifyToken, verifyAnalyst, async (req, res) => {
     try {
       const snapshot = await db.collection("transactions").orderBy("date", "desc").limit(50).get();
       const transactions = snapshot.docs.map(doc => ({
@@ -185,7 +213,7 @@ async function startServer() {
    * /api/users:
    *   get:
    *     summary: Get all users
-   *     description: Returns all users from Firestore. Requires admin authentication.
+   *     description: Returns all users from Firestore. Requires Admin role only.
    *     security:
    *       - bearerAuth: []
    *     responses:
@@ -211,9 +239,11 @@ async function startServer() {
    *                     type: string
    *                     enum: [active, inactive]
    *       401:
-   *         description: Unauthorized
+   *         description: Unauthorized - No token provided
+   *       403:
+   *         description: Forbidden - Admin access required
    */
-  app.get("/api/users", verifyToken, async (req, res) => {
+  app.get("/api/users", verifyToken, verifyAdmin, async (req, res) => {
     try {
       const snapshot = await db.collection("users").get();
       const users = snapshot.docs.map(doc => ({
@@ -233,7 +263,7 @@ async function startServer() {
    * /api/transactions:
    *   post:
    *     summary: Create a transaction
-   *     description: Creates a new transaction in Firestore. Requires authentication.
+   *     description: Creates a new transaction in Firestore. Requires Admin role only.
    *     security:
    *       - bearerAuth: []
    *     requestBody:
@@ -257,11 +287,13 @@ async function startServer() {
    *                 type: string
    *     responses:
    *       201:
-   *         description: Transaction created
+   *         description: Transaction created successfully
    *       401:
-   *         description: Unauthorized
+   *         description: Unauthorized - No token provided
+   *       403:
+   *         description: Forbidden - Admin access required
    */
-  app.post("/api/transactions", verifyToken, async (req: any, res) => {
+  app.post("/api/transactions", verifyToken, verifyAdmin, async (req: any, res) => {
     try {
       const { amount, type, category, description, date } = req.body;
       const newTransaction = {
