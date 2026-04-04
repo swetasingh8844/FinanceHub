@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const Dashboard: React.FC = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isAnalyst } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary>({
     totalIncome: 0,
     totalExpenses: 0,
@@ -76,7 +76,7 @@ const Dashboard: React.FC = () => {
       <header>
         <h2 className="text-4xl font-bold text-neutral-900 tracking-tight">Overview</h2>
         <p className="text-neutral-500 mt-1">Real-time financial performance and activity.</p>
-        {isAdmin && (
+        {(isAdmin || isAnalyst) && (
   <button
     onClick={copyToken}
     className="mt-2 text-xs px-3 py-1 bg-brand-600 text-white rounded-lg"
