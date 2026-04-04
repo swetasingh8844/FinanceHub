@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
+import cors from "cors";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -113,6 +114,18 @@ servers: [
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Swagger documentation available at http://localhost:${PORT}/api-docs`);
   });
+
+  app.use(cors({
+  origin: [
+    "http://localhost:3000",
+    "https://financehub-3dc32.web.app",
+    "https://financehub-3dc32.firebaseapp.com",
+    "https://financehub-sacy.onrender.com",
+    "https://financehubservice.onrender.com"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
 }
 
 startServer();
