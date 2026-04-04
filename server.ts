@@ -10,7 +10,8 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
+
 
   // Swagger definition
   const swaggerOptions = {
@@ -21,12 +22,16 @@ async function startServer() {
         version: "1.0.0",
         description: "API documentation for the FinanceHub application. This API provides endpoints for managing transactions and user profiles.",
       },
-      servers: [
-        {
-          url: "http://localhost:3000",
-          description: "Development server",
-        },
-      ],
+servers: [
+  {
+    url: process.env.NODE_ENV === "production"
+      ? "https://financehub-sacy.onrender.com"
+      : "http://localhost:3000",
+    description: process.env.NODE_ENV === "production"
+      ? "Production server"
+      : "Development server",
+  },
+],
     },
     apis: ["./server.ts"], // Path to the API docs
   };
