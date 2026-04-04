@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { db, collection, onSnapshot, query, orderBy, limit } from '../firebase';
+import { db, collection, onSnapshot, query, orderBy } from '../firebase';
 import { Transaction, DashboardSummary } from '../types';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
 import { TrendingUp, TrendingDown, Wallet, ArrowRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const Dashboard: React.FC = () => {
+  const { user } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary>({
     totalIncome: 0,
     totalExpenses: 0,
@@ -49,6 +51,12 @@ const Dashboard: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  const copyToken = async () => {
+    const token = await user?.getIdToken(true);
+    await navigator.clipboard.writeText(token || '');
+    alert('Token copied to clipboard! Paste it in Swagger Authorize.');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -68,6 +76,12 @@ const Dashboard: React.FC = () => {
       <header>
         <h2 className="text-4xl font-bold text-neutral-900 tracking-tight">Overview</h2>
         <p className="text-neutral-500 mt-1">Real-time financial performance and activity.</p>
+        <button
+          onClick={copyToken}
+          className="mt-2 text-xs px-3 py-1 bg-brand-600 text-white rounded-lg"
+        >
+          Copy Auth Token
+        </button>
       </header>
 
       {/* Stats Grid */}
@@ -144,8 +158,8 @@ const Dashboard: React.FC = () => {
                       <span className="font-bold text-neutral-900 tabular-nums">{formatCurrency(total as number)}</span>
                     </div>
                     <div className="h-2.5 bg-neutral-100 rounded-full overflow-hidden shadow-inner">
-                      <div 
-                        className="h-full bg-brand-600 rounded-full shadow-sm" 
+                      <div
+                        className="h-full bg-brand-600 rounded-full shadow-sm"
                         style={{ width: `${Math.min(((total as number) / Math.max(...Object.values(summary.categoryTotals) as number[])) * 100, 100)}%` }}
                       />
                     </div>
