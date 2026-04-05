@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
 import admin from "firebase-admin";
-import { readFileSync } from "fs";
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,17 +15,14 @@ const __dirname = path.dirname(__filename);
 let db: admin.firestore.Firestore;
 
 try {
-  if (process.env.NODE_ENV === "production" && process.env.FIREBASE_SERVICE_ACCOUNT) {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       databaseURL: `https://financehub-3dc32.firebaseio.com`,
     });
   } else {
-    const serviceAccount = JSON.parse(readFileSync("./serviceAccountKey.json", "utf-8"));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
+    throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not set");
   }
   db = admin.firestore();
   db.settings({ databaseId: "ai-studio-8133af41-f711-4352-87d2-f9992ce5f204" });
@@ -132,6 +129,42 @@ async function startServer() {
     }
   };
 
+  // ── Input Validation for Transaction ──
+  const validateTransaction = (req: any, res: any, next: any) => {
+    const { amount, type, category, date } = req.body;
+    const errors: string[] = [];
+
+    if (amount === undefined || amount === null) {
+      errors.push("Amount is required");
+    } else if (typeof amount !== "number" || isNaN(amount)) {
+      errors.push("Amount must be a number");
+    } else if (amount <= 0) {
+      errors.push("Amount must be a positive number");
+    }
+
+    if (!type) {
+      errors.push("Type is required");
+    } else if (!["income", "expense"].includes(type)) {
+      errors.push("Type must be either 'income' or 'expense'");
+    }
+
+    if (!category || typeof category !== "string" || category.trim() === "") {
+      errors.push("Category is required and must be a non-empty string");
+    }
+
+    if (!date) {
+      errors.push("Date is required");
+    } else if (isNaN(new Date(date).getTime())) {
+      errors.push("Date must be a valid date string");
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ error: "Validation failed", details: errors });
+    }
+
+    next();
+  };
+
   /**
    * @openapi
    * /api/health:
@@ -204,7 +237,7 @@ async function startServer() {
       res.json(transactions);
     } catch (error) {
       console.error("Error fetching transactions:", error);
-      res.status(500).json({ error: "Failed to fetch transactions" });
+      res.status(500).json({ error: "Internal server error - Failed to fetch transactions" });
     }
   });
 
@@ -254,7 +287,7 @@ async function startServer() {
       res.json(users);
     } catch (error) {
       console.error("Error fetching users:", error);
-      res.status(500).json({ error: "Failed to fetch users" });
+      res.status(500).json({ error: "Internal server error - Failed to fetch users" });
     }
   });
 
@@ -263,7 +296,7 @@ async function startServer() {
    * /api/transactions:
    *   post:
    *     summary: Create a transaction
-   *     description: Creates a new transaction in Firestore. Requires Admin role only.
+   *     description: Creates a new transaction in Firestore. Requires Admin role. Amount must be positive, type must be income or expense, category and date are required.
    *     security:
    *       - bearerAuth: []
    *     requestBody:
@@ -276,40 +309,63 @@ async function startServer() {
    *             properties:
    *               amount:
    *                 type: number
+   *                 example: 1500
+   *                 description: Must be a positive number
    *               type:
    *                 type: string
    *                 enum: [income, expense]
+   *                 example: income
    *               category:
    *                 type: string
+   *                 example: Salary
+   *                 description: Must be a non-empty string
    *               description:
    *                 type: string
+   *                 example: Monthly salary
    *               date:
    *                 type: string
+   *                 example: "2026-04-01"
+   *                 description: Must be a valid date string
    *     responses:
    *       201:
    *         description: Transaction created successfully
+   *       400:
+   *         description: Validation failed - invalid input data
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 error:
+   *                   type: string
+   *                   example: Validation failed
+   *                 details:
+   *                   type: array
+   *                   items:
+   *                     type: string
+   *                   example: ["Amount must be a positive number", "Type must be either 'income' or 'expense'"]
    *       401:
    *         description: Unauthorized - No token provided
    *       403:
    *         description: Forbidden - Admin access required
    */
-  app.post("/api/transactions", verifyToken, verifyAdmin, async (req: any, res) => {
+  app.post("/api/transactions", verifyToken, verifyAdmin, validateTransaction, async (req: any, res) => {
     try {
       const { amount, type, category, description, date } = req.body;
       const newTransaction = {
         amount,
         type,
-        category,
-        description: description || "",
+        category: category.trim(),
+        description: description?.trim() || "",
         date: admin.firestore.Timestamp.fromDate(new Date(date)),
         createdBy: req.user.uid,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       };
       const docRef = await db.collection("transactions").add(newTransaction);
-      res.status(201).json({ id: docRef.id, ...newTransaction });
+      res.status(201).json({ id: docRef.id, message: "Transaction created successfully" });
     } catch (error) {
       console.error("Error creating transaction:", error);
-      res.status(500).json({ error: "Failed to create transaction" });
+      res.status(500).json({ error: "Internal server error - Failed to create transaction" });
     }
   });
 
@@ -327,6 +383,15 @@ async function startServer() {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
+
+  // ── Global Error Handler (must be last) ──
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error("Unhandled error:", err);
+    res.status(500).json({
+      error: "Internal server error",
+      message: process.env.NODE_ENV === "production" ? "Something went wrong" : err.message,
+    });
+  });
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
